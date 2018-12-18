@@ -126,9 +126,9 @@ grf_data <- function(df) {
   e <- max(GRFData$ForceC)
   f <- max(GRFData$ForceTotal)
   
-  g <- a/weight_massLIST[[4]]
-  h <- b/weight_massLIST[[5]]
-  i <- c/weight_massLIST[[6]]
+  g <- a/weight_mass[[4]]
+  h <- b/weight_mass[[5]]
+  i <- c/weight_mass[[6]]
   
   return(list(PeakGRF_A=a,PeakGRF_C=b, PeakGRF_Total=c, PeakGRF_A_Nkg=d, PeakGRF_C_Nkg=e, PeakGRF_Total_Nkg=f,
               Relative_PeakF_a=g, Relative_PeakF_c=h, Relative_PeakF_total=i))

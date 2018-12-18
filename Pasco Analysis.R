@@ -1,3 +1,10 @@
+library(tidyverse)
+library(magrittr)
+library(zoo)
+library(data.table)
+library(tidyr)
+library(tictoc)
+
 source('Force Plate Func.R')
 
 library(data.table)
@@ -14,7 +21,7 @@ data_sample <- data %>%
 sample_rate <- nrow(data_sample)
 
 ##Produce weights(N), massess (Kg)
-weight_massLIST <- weight_mass(data)
+weight_mass <- weight_mass(data)
 
 ###Produce force, impulse, power, relative values, 
 data2 <- Initial_metric(data)
@@ -35,10 +42,56 @@ list_grf <- grf_data(data2)
 ###Time to peak force, landing assym
 landing_list <- Peak_landasym(data2)
 
-Ecc_End_peak <- data$Time[Data$]
+###Weighting phase
+weighing <- data%>%
+  filter(row_number() < list_rsi[[1]])
 
-start_peak <- data2%>%
-  filter(row_number() > list_rsi[[1]] & Time < landing_list[[1]])
+###Unweighting phase
+unweighting <- start_peak%>%
+  filter(VerticalForceA < weight_mass[[4]])
+  
+###Braking Phase
+braking <- start_peak%>%
+  filter(VerticalForceA > weight_mass[[4]])
+
+###Propulsive Phase
+PeakGRFtime <-data$Time[data$VerticalForceA == list_grf[[1]]]
+propulsive <- data %>%
+  filter(Time < JumpLandFlight_list[[1]] & Time > PeakGRFtime)
+
+###Flight Phase
+flight <- data%>%
+  filter(Time > JumpLandFlight_list[[1]] & Time < JumpLandFlight_list[[4]])
+
+timetest <- min(start_peak$Time[start_peak$VerticalForceA > weight_mass[[4]]])
+Test1 <- data %>%
+  filter(between(row_number(), 1, 300))
+a <- as.integer(weight_mass[[4]] - (5*(sd(Test1$VerticalForceA))))
+a <- min(which(data2$VerticalForceA <=a))
+
+timetest2 <- min(start_peak$Time[start_peak$VerticalForceA < a])
+
+
+
+
+
+data_phase <- data %>%
+  mutate(phase = case_when(Time <= timetest2-0.3 ~ "Weighing",
+                           Time > timetest2-0.3 & Time <= timetest ~ "Unweighting",
+                           Time > timetest & Time <= PeakGRFtime ~ 'Braking',
+                           Time > PeakGRFtime & Time <= JumpLandFlight_list[[1]] ~ 'Propulsive',
+                           Time > JumpLandFlight_list[[1]] & Time <= JumpLandFlight_list[[4]] ~ "Flight",
+                           Time > JumpLandFlight_list[[4]] ~ "Landing"),
+         phase = factor(phase, levels = c('Weighing', 'Unweighting', 'Braking', 'Propulsive', 'Flight', 'Landing'))) 
+
+ggplot(data_phase, aes(Time, VerticalForceC))+
+  geom_line() +
+  facet_wrap(.~phase, scales = 'free_x') +
+  theme_bw()
+
+ggplot(data, aes(Time, VerticalForceC))+
+  geom_line()+
+  theme_bw()
 
 start_peak$VerticalForceA_diff <- c(0, diff(start_peak$VerticalForceA)) 
 start_peak$VerticalForceC_diff <- c(0, diff(start_peak$VerticalForceC)) 
@@ -96,30 +149,20 @@ MeanPower_ecc_total <- mean(Total_ecc_only$Combined)
 RelPower_ecc_total <- min(Total_ecc_only$RelativePowerTotal)
 MeanRelPower_ecc_total <- mean(Total_ecc_only$RelativePowerTotal)
 
-data$VerticalForceA
-
-  ggplot(data, aes(x=Time, y=VerticalForceA))+
+ggplot(data2, aes(x=Time, y=VerticalForceA))+
   geom_line()+
+  geom_line(aes(x=Time, y=Velocity_A*100))+
   theme_minimal()+
-  geom_vline(aes(xintercept = JumpLandFlight_list[[1]],colour='TakeOff')) +
-  geom_vline(aes(xintercept = JumpLandFlight_list[[4]], colour='Land')) +
-  geom_vline(aes(xintercept = starttime_a, colour='JumpStart/EccStart'))+
-  geom_vline(aes(xintercept = ecc_time, colour='EccDecelerationStart')) +
-  geom_vline(aes(xintercept = ecc_end, colour='EccDecelerationEnd')) +
-  geom_vline(aes(xintercept = landing_list[[1]], colour='EccEnd')) +
-  geom_segment(aes(y=4000, x=starttime_a, xend=landing_list[[1]], yend=4000))+
-  annotate('text', x=3.2, label='Eccentric', y=4100, hjust=1, colour = "black", alpha=0.8, size=3, fontface="bold") +
+  geom_vline(aes(xintercept = JumpLandFlight_list[[1]],colour='TakeOff'), colour='green') +
+  geom_vline(aes(xintercept = JumpLandFlight_list[[4]], colour='Land'), colour='green') +
+  geom_vline(aes(xintercept = ecc_time, colour='EccDecelerationStart'), colour='blue') +
+  geom_vline(aes(xintercept = ecc_end, colour='EccDecelerationEnd'), colour='blue') +
+  geom_vline(aes(xintercept = landing_list[[1]], colour='EccEnd'), colour='red') +
   geom_segment(aes(y=3500, x=JumpLandFlight_list[[4]], xend=JumpLandFlight_list[[1]], yend=3500))+
   annotate('text', x=3.8, label='Flight', y=3600, hjust=1, colour = "black", alpha=0.8, size=3, fontface="bold")+
-  geom_segment(aes(y=3000, x=ecc_time, xend=ecc_end, yend=3000))+
-  annotate('text', x=3, label='EccDecel', y=3100, hjust=1, colour = "black", alpha=0.8, size=3, fontface="bold")
-
-
+  geom_segment(aes(y=3000, x=ecc_time, xend=landing_list[[1]], yend=3000))+
+  annotate('text', x=3, label='EccDecel', y=3100, hjust=1, colour = "black", alpha=0.8, size=3, fontface="bold")+
+  geom_segment(aes(y=3250, x=ecc_end, xend=landing_list[[1]], yend=3250))+
+  annotate('text', x=3.18, label='EccAccel', y=3350, hjust=1, colour = "black", alpha=0.8, size=3, fontface="bold")
   
-
-
-
-?geom_vline
-  
-ecc_time
 
