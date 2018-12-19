@@ -149,7 +149,81 @@ Peak_landasym <- function(df){
   
 }
 
+unweighting <- function(df1, df2, df3) {
+  
+  unweight_start <- min(df1$Time[df1[[2]] < list_weights_n[[ c(1, 2) ]]])
+  weighing_A <- df1 %>%
+    filter(Time >= unweight_start)
+  unweight_finish <- min(weighing_A$Time[weighing_A[[2]] > list_weights_n[[ c(1, 1) ]]])
+  weighing_A %<>%
+    filter(Time < unweight_finish)
+  
+  unweight_start <- min(df2$Time[df2[[2]] < list_weights_n[[ c(2, 2) ]]])
+  weighing_c <- df2 %>%
+    filter(Time >= unweight_start)
+  unweight_finish <- min(weighing_c$Time[weighing_c[[2]] > list_weights_n[[ c(2, 1) ]]])
+  weighing_c %<>%
+    filter(Time <= unweight_finish)
+  
+  unweight_start <- min(df3$Time[df3[[2]] < list_weights_n[[ c(3, 2) ]]])
+  weighing_combined <- df3 %>%
+    filter(Time >= unweight_start)
+  unweight_finish <- min(weighing_combined$Time[weighing_combined[[2]] > list_weights_n[[ c(3, 1) ]]])
+  weighing_combined %<>%
+    filter(Time <= unweight_finish)
+  
+  return(list(unweighting_a=weighing_A, unweighting_c=weighing_c, unweighting_combined=weighing_combined))
+  
+}
 
+braking_func <- function(df1, df2, df3) {
+  
+  brake_start <- max(list_unweighting[[c(1,1)]])
+  braking_a <-df1 %>%
+    filter(Time >= brake_start)
+  braking_a$force_diff <- c(0, diff(braking_a[[2]]))
+  brake_end <- min(braking_a[[1]][braking_a$force_diff < 0])
+  braking_a %<>%
+    filter(Time <= brake_end)
+  
+  brake_start <- max(list_unweighting[[c(2,1)]])
+  braking_c <-df2 %>%
+    filter(Time >= brake_start)
+  braking_c$force_diff <- c(0, diff(braking_c[[2]]))
+  brake_end <- min(braking_c[[1]][braking_c$force_diff < 0])
+  braking_c %<>%
+    filter(Time <= brake_end)
+  
+  brake_start <- max(list_unweighting[[c(3,1)]])
+  braking_tot <-df3 %>%
+    filter(Time >= brake_start)
+  braking_tot$force_diff <- c(0, diff(braking_tot[[2]]))
+  brake_end <- min(braking_tot[[1]][braking_tot$force_diff < 0])
+  braking_tot %<>%
+    filter(Time <= brake_end)
+  
+  return(list(braking_A=braking_a, braking_C=braking_c, braking_Com=braking_tot))
+  
+}
 
-
-
+prop_func <- function(df1, df2, df3) {
+  
+  prop_a <-df1 %>%
+    filter(Time >= max(list_brake[[c(1,1)]]))
+  prop_a %<>%
+    filter(Time <= min(prop_a$Time[prop_a$VerticalForceA <= list_weights_n[[c(1,1)]]]))
+  
+  prop_c <-df2 %>%
+    filter(Time >= max(list_brake[[c(2,1)]]))
+  prop_c %<>%
+    filter(Time <= min(prop_c$Time[prop_c$VerticalForceC <= list_weights_n[[c(2,1)]]]))
+  
+  prop_total <-df3 %>%
+    filter(Time >= max(list_brake[[c(3,1)]]))
+  prop_total %<>%
+    filter(Time <= min(prop_total$Time[prop_total$Combined <= list_weights_n[[c(3,1)]]]))
+  
+  return(list(Prop_A=prop_a, Prop_C=prop_c, Prop_Total=prop_total))
+  
+  
+}
