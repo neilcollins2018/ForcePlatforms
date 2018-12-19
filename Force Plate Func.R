@@ -25,7 +25,7 @@ Velocity_func <- function(time, accel) {
 
 ###Produce force, acceleration and velocity metrics
 Initial_metric <- function(x) {
-
+  
   x %>%
     mutate(NetForceA = VerticalForceA - weight_mass$VerticalForceA,
            NetForceC = VerticalForceC - weight_mass[[5]],
@@ -109,7 +109,6 @@ row_starts <- function(df) {
               RSI_C = (e - b)*(1/sample_rate),
               RSI_Total = (f - c)*(1/sample_rate)
   ))
-  
 }
 
 grf_data <- function(df) {
@@ -146,36 +145,31 @@ Peak_landasym <- function(df){
   
   return(list(Peaktime_a=a,Peaktime_C=b, Peaktime_total=c, Landing_Assym=d, TimetoPeak_a=e, TimetoPeak_c=f,
               TimetoPeak_total=g))
-  
 }
 
-unweighting <- function(df1, df2, df3) {
+###Separate Unweighting phase
+unweighting_func <- function(df1, df2, df3) {
   
-  unweight_start <- min(df1$Time[df1[[2]] < list_weights_n[[ c(1, 2) ]]])
-  weighing_A <- df1 %>%
-    filter(Time >= unweight_start)
-  unweight_finish <- min(weighing_A$Time[weighing_A[[2]] > list_weights_n[[ c(1, 1) ]]])
-  weighing_A %<>%
-    filter(Time < unweight_finish)
+  a1 <- min(df1$Time[df1[[2]] < list_weights_n[[c(1, 2)]]])
+  a <- df1 %>% filter(Time >= a1)
+  a2 <- min(a$Time[a[[2]] > list_weights_n[[ c(1, 1) ]]])
+  a %<>% filter(Time < a2)
   
-  unweight_start <- min(df2$Time[df2[[2]] < list_weights_n[[ c(2, 2) ]]])
-  weighing_c <- df2 %>%
-    filter(Time >= unweight_start)
-  unweight_finish <- min(weighing_c$Time[weighing_c[[2]] > list_weights_n[[ c(2, 1) ]]])
-  weighing_c %<>%
-    filter(Time <= unweight_finish)
+  b1 <- min(df2$Time[df2[[2]] < list_weights_n[[c(1, 2)]]])
+  b <- df2 %>% filter(Time >= b1)
+  b2 <- min(b$Time[b[[2]] > list_weights_n[[ c(1, 1) ]]])
+  b %<>% filter(Time < b2)
   
-  unweight_start <- min(df3$Time[df3[[2]] < list_weights_n[[ c(3, 2) ]]])
-  weighing_combined <- df3 %>%
-    filter(Time >= unweight_start)
-  unweight_finish <- min(weighing_combined$Time[weighing_combined[[2]] > list_weights_n[[ c(3, 1) ]]])
-  weighing_combined %<>%
-    filter(Time <= unweight_finish)
+  c1 <- min(df3$Time[df3[[2]] < list_weights_n[[c(1, 2)]]])
+  c <- df3 %>% filter(Time >= c1)
+  c2 <- min(c$Time[c[[2]] > list_weights_n[[ c(1, 1) ]]])
+  c %<>% filter(Time < c2)
   
-  return(list(unweighting_a=weighing_A, unweighting_c=weighing_c, unweighting_combined=weighing_combined))
+  return(list(unweighting_A=a, unweighting_C=b, unweighting_total=c))
+}  
   
-}
 
+###Separate Braking phase
 braking_func <- function(df1, df2, df3) {
   
   brake_start <- max(list_unweighting[[c(1,1)]])
@@ -206,6 +200,7 @@ braking_func <- function(df1, df2, df3) {
   
 }
 
+###Separate Propulsion phase
 prop_func <- function(df1, df2, df3) {
   
   prop_a <-df1 %>%
@@ -224,6 +219,69 @@ prop_func <- function(df1, df2, df3) {
     filter(Time <= min(prop_total$Time[prop_total$Combined <= list_weights_n[[c(3,1)]]]))
   
   return(list(Prop_A=prop_a, Prop_C=prop_c, Prop_Total=prop_total))
+}
+
+
+flight_func <- function(df1, df2, df3) {
   
+  flight_a <- df1 %>%
+    filter(Time >= max(list_prop[[c(1,1)]]))
+   flight_a %<>%
+    filter(Time >= min(flight_a$Time[flight_a[[2]] <= 40]))
+   flight_a %<>%
+     filter(Time <= min(flight_a$Time[flight_a[[2]] >= 40]))
+ 
+   flight_c <- df2 %>%
+    filter(Time >= max(list_prop[[c(2,1)]]))
+   flight_c %<>%
+     filter(Time >= min(flight_c$Time[flight_c[[2]] <= 40]))
+   flight_c %<>%
+     filter(Time <= min(flight_c$Time[flight_c[[2]] >= 40]))
+  
+   flight_tot <- df3 %>%
+    filter(Time >= max(list_prop[[c(3,1)]]))
+   flight_tot %<>%
+     filter(Time >= min(flight_tot$Time[flight_tot[[2]] <= 40]))
+   flight_tot %<>%
+     filter(Time <= min(flight_tot$Time[flight_tot[[2]] >= 40]))
+   
+   return(list(Flight_A=flight_a, Flight_C=flight_c, Flight_Total=flight_tot))
+}
+
+landing_func <- function(df1, df2, df3) {
+  
+  Landing_start <- max(list_flight[[c(1,1)]])
+  landing_a <-df1 %>%
+    filter(Time >= Landing_start)
+  
+  Landing_start <- max(list_flight[[c(1,1)]])
+  landing_b <-df2 %>%
+    filter(Time >= Landing_start)
+  
+  Landing_start <- max(list_flight[[c(1,1)]])
+  landing_c <-df3 %>%
+    filter(Time >= Landing_start)
+  
+  return(list(Landing_A=landing_a, Landing_C=landing_b, Landing_Total=landing_c))
   
 }
+
+finaldf_func <- function(list_df) {
+  
+  bind_rows(list_df, .id = "Jump_Phase") %>%
+    mutate(Jump_Phase = case_when(Jump_Phase == '1' ~ "weighing",
+                                  Jump_Phase == '2' ~ "unweighting",
+                                  Jump_Phase == '3' ~ "braking",
+                                  Jump_Phase == '4' ~ "propulsion",
+                                  Jump_Phase == '5' ~ 'flight',
+                                  Jump_Phase == '6' ~ "landing"),
+           Jump_Phase = factor(Jump_Phase, levels = c('weighing', 'unweighting', 'braking', 'propulsion', 'flight', 'landing')))
+
+}
+
+
+
+
+
+
+
