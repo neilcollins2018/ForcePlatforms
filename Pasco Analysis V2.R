@@ -4,7 +4,7 @@ library(zoo)
 library(data.table)
 library(tidyr)
 library(devtools)
-library(plotly)
+library(cowplot)
 source_gist("524eade46135f6348140")
 
 
@@ -58,11 +58,23 @@ list_brake <- braking_func(data_A, data_C, data_Combined)
 ###Propulsion Phase
 ###
 list_prop <- prop_func(data_A, data_C, data_Combined)
+nrow_a <- nrow(list_prop[[1]])
+nrow_c <- nrow(list_prop[[2]])
+nrow_total <- nrow(list_prop[[3]])
 
 ###
 ###Flight Phase
 ###
 list_flight <- flight_func(data_A, data_C, data_Combined)
+
+##Jump Height from flight time ((ft/2)^2)*9.80665*0.5)
+jumpheight_df <-data_frame(jumpheight_meters=c(
+jumpheightFL_a <- (((max(list_flight[[1]][1])-min(list_flight[[1]][1]))/2)^2)*9.80665*0.5,
+jumpheightFL_c <- (((max(list_flight[[2]][1])-min(list_flight[[2]][1]))/2)^2)*9.80665*0.5,
+jumpheightFL_total <- (((max(list_flight[[3]][1])-min(list_flight[[3]][1]))/2)^2)*9.80665*0.5))
+
+##Jump height from takeoff vel TOVel^2/2*9.8066,
+jumpheightTOV_a <- ((list_prop[[1]][[c(7,nrow_a)]])^2)/(9.80665*2)
 
 ###
 ###Landing Phase
@@ -132,9 +144,6 @@ C <- df_forceTotal %>%
 
 
 plot_grid(A, B, C, ncol = 3, labels = c("Left", "Right", "Combined"))
-    
-
-
 
 data_A$force_diff <- c(0, diff(data_A$VerticalForceA))
 
@@ -147,10 +156,14 @@ f <- data_A %>%
   filter(Time < timefil-.02) %>%
   ggplot(aes(Time, VerticalForceA, colour="Force"))+
   geom_line()+
-  geom_vline(xintercept = 3.28)+
-  geom_vline(xintercept = 3.394)+
+  # geom_vline(xintercept = 3.28)+
+  # geom_vline(xintercept = 3.394)+
   geom_hline(yintercept = 0)+
-  geom_line(aes(x=Time, y=force_diff*50, colour='diff'))
+  geom_vline(xintercept = 2.66)+
+  geom_vline(xintercept = 3.05)+
+  geom_vline(xintercept = 3.28)+
+  geom_line(aes(x=Time, y=force_diff*50, colour='Force_diff'))+
+  geom_line(aes(x=Time, y=Velocity_A*100, colour='Vel'))
 
 
-ggplotly(f)  
+session_info()
