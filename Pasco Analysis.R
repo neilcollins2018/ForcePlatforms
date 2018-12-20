@@ -72,9 +72,6 @@ a <- min(which(data2$VerticalForceA <=a))
 timetest2 <- min(start_peak$Time[start_peak$VerticalForceA < a])
 
 
-
-
-
 data_phase <- data %>%
   mutate(phase = case_when(Time <= timetest2-0.3 ~ "Weighing",
                            Time > timetest2-0.3 & Time <= timetest ~ "Unweighting",

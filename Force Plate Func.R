@@ -275,7 +275,13 @@ finaldf_func <- function(list_df) {
                                   Jump_Phase == '4' ~ "propulsion",
                                   Jump_Phase == '5' ~ 'flight',
                                   Jump_Phase == '6' ~ "landing"),
-           Jump_Phase = factor(Jump_Phase, levels = c('weighing', 'unweighting', 'braking', 'propulsion', 'flight', 'landing')))
+           Jump_Phase = factor(Jump_Phase, levels = c('weighing', 'unweighting',
+                                                      'braking', 'propulsion', 'flight', 'landing'))) %>%
+    group_by(Jump_Phase) %>%
+    mutate(
+      Time_Period = cumsum(c(0, diff(Time)))
+    ) %>% ungroup()
+  
 
 }
 
