@@ -7,8 +7,6 @@ library(devtools)
 library(cowplot)
 source_gist("524eade46135f6348140")
 
-here()
-
 source('Force Plate Func.R')
 options(scipen = 999, digits=5)
 
@@ -31,10 +29,9 @@ data_C <- mass_func(data_C)
 weight_massA <- weight_mass(data_A)
 weight_massC <- weight_mass(data_C)
 
-###Produce force, impulse, power, relative values, 
+###Produce force, impulse, power, relative values & list of df 
 data_A <- Initial_metric(data_A, data_C, weight_massA)
 data_C <- Initial_metric(data_C, data_A, weight_massC)
-
 data_list <- list(data_A, data_C)
 
 ###
@@ -91,11 +88,51 @@ df_forceAfinal <- finalmetrics_func(df_forceA)
 df_forceCfinal <- finalmetrics_func(df_forceC)
 
 
-test <- bind_rows(df_forceAfinal, df_forceCfinal, .id="Sensor") %>%
+###Combine Summary Metrics
+finalmetric_df <- bind_rows(df_forceAfinal, df_forceCfinal, .id="Sensor") %>%
   mutate(Sensor = case_when(Sensor == '1' ~ "A",
                             Sensor == '2' ~ 'C'))
 
 
+
+MassKG_A <- weight_massA[[2]]
+MassKG_C <- weight_massC[[2]]
+WeightN_A <- weight_massA[[1]]
+WeightN_C <- weight_massC[[1]]
+FlightTime_A <- max(list_flight[[1]][1]) - min(list_flight[[1]][1])
+FlightTime_C <- max(list_flight[[2]][1]) - min(list_flight[[2]][1])
+TimeAtTO_A <- min(list_flight[[1]][1])
+TimeAtTO_C <- min(list_flight[[2]][1])
+TimeAtLanding_A <- min(list_landing[[1]][1])
+TimeAtLanding_C <- min(list_landing[[2]][1])
+JumpHeightA <- ((FlightTime_A/2)^2)*9.80665*.5
+JumpHeightC <- ((FlightTime_C/2)^2)*9.80665*.5
+PeakGRF_A <- max(list_brake[[1]][2])
+PeakGRF_C <- max(list_brake[[2]][2])
+TimeOfPeak_A <- list_brake[[1]] %>%
+  filter(list_brake[[1]][2] == PeakGRF_A) %>%
+  select(1)
+TimeOfPeak_C <- list_brake[[2]] %>%
+  filter(list_brake[[2]][2] == PeakGRF_C) %>%
+  select(1)
+TimeToPeak_A <- TimeOfPeak_A - min(list_unweighting[[1]][1])
+TimeToPeak_A <- TimeOfPeak_C - min(list_unweighting[[2]][1])
+
+
+full_data <- bind_rows(df_forceA, df_forceC, .id='sensor')
+
+ggplot(full_data, aes(x=Time, y=VerticalForce, colour=sensor))+
+  geom_line()+
+  theme_bw()+
+  facet_wrap(.~Jump_Phase, scales = "free_x")
+
+
+
+TimeOfPeak <- list_brake[[1]] %>%
+  filter(list_brake[[1]][2] == PeakGRF_A) %>%
+  select(1)
+list_brake[[1]][1][list_brake[[1]][2] == PeakGRF_A]
+  
 ###Plots
 ggplot(df_forceA, aes(x=Time, y=VerticalForce))+
   geom_line()+
@@ -105,8 +142,6 @@ ggplot(df_forceA, aes(x=Time, y=VerticalForce))+
 ggplot(df_forceC, aes(x=Time, y=VerticalForce))+
   geom_line()+
   theme_bw()+
-  facet_wrap(.~Jump_Phase, scales = "free_x")
-
   facet_wrap(.~Jump_Phase, scales = "free_x")
 
 
@@ -131,18 +166,5 @@ B <- df_forceC %>%
   stat_smooth(method = "lm", alpha=.2)
 
 plot_grid(A, B, ncol = 2, labels = c("Left", "Right"))
-
-f <- data_A %>%
-  filter(Time < timefil-.02) %>%
-  ggplot(aes(Time, VerticalForceA, colour="Force"))+
-  geom_line()+
-  # geom_vline(xintercept = 3.28)+
-  # geom_vline(xintercept = 3.394)+
-  geom_hline(yintercept = 0)+
-  geom_vline(xintercept = 2.66)+
-  geom_vline(xintercept = 3.05)+
-  geom_vline(xintercept = 3.28)+
-  geom_line(aes(x=Time, y=force_diff*50, colour='Force_diff'))+
-  geom_line(aes(x=Time, y=Velocity_A*100, colour='Vel'))
 
 session_info()
