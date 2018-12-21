@@ -7,6 +7,7 @@ library(devtools)
 library(cowplot)
 source_gist("524eade46135f6348140")
 
+here()
 
 source('Force Plate Func.R')
 options(scipen = 999, digits=5)
@@ -15,23 +16,26 @@ options(scipen = 999, digits=5)
 data <- Pasco_read("CMJ_Run02.txt")
 
 ##Calculate sample rate
-data_sample <- data %>%
-  filter(Time < 1)
-sample_rate <- nrow(data_sample)
-rm(data_sample)
+sample_rate <- sample_rate_func(data)
+
+###Separate into different force traces
+data_A <- data[, c(1,2)]
+data_C <- data[, c(1,3)]
+colnames(data_C) <- c("Time", 'VerticalForce')
+
+###Calculate Mass
+data_A <- mass_func(data_A)
+data_C <- mass_func(data_C)
 
 ##Produce weights(N), massess (Kg)
-weight_mass <- weight_mass(data)
+weight_massA <- weight_mass(data_A)
+weight_massC <- weight_mass(data_C)
 
 ###Produce force, impulse, power, relative values, 
-data2 <- Initial_metric(data)
+data_A <- Initial_metric(data_A, data_C, weight_massA)
+data_C <- Initial_metric(data_C, data_A, weight_massC)
 
-###Seperate into different force sources
-data_A <- data2[, c(1,2,4, 8, 11, 14, 17, 20, 23, 26, 29)]
-data_C <- data2[, c(1,3,5, 9, 12, 15, 18, 21, 24, 27, 30)]
-data_Combined <- data2[, c(1,6,7, 10, 13, 16, 19, 22, 25, 28, 31)]
-
-data_list <- list(data_A, data_C, data_Combined)
+data_list <- list(data_A, data_C)
 
 ###
 ###Weighing Phase
@@ -40,75 +44,69 @@ list_weighing <- lapply(data_list, function(x){x %<>% filter(Time < 1);x})
 
 ####Weights(N)/Masses (Kg)
 list_weights_n <- lapply(list_weighing, function(x){x %<>% summarise(weight_n = mean(x[[2]]),
-                                                                   unweight_onset_N = (weight_n -5*sd(x[[2]])));x})
+                                                                     unweight_onset_N = (weight_n -5*sd(x[[2]])));x})
 list_mass_kg <- lapply(list_weighing, function(x){x %<>% summarise(mass_kg = mean(x[[3]]),
-                                                                unweight_onset_KG = (mass_kg - 5*sd(x[[3]])));x})
+                                                                   unweight_onset_KG = (mass_kg - 5*sd(x[[3]])));x})
 
 ###
 ###Unweighting Phase
 ###
-list_unweighting <- unweighting_func(data_A, data_C, data_Combined)
+list_unweighting <- unweighting_func(data_A, data_C)
 
 ###
 ###Braking Phase
 ###
-list_brake <- braking_func(data_A, data_C, data_Combined)
+list_brake <- braking_func(data_A, data_C)
 
 ###
 ###Propulsion Phase
 ###
-list_prop <- prop_func(data_A, data_C, data_Combined)
+list_prop <- prop_func(data_A, data_C)
 nrow_a <- nrow(list_prop[[1]])
 nrow_c <- nrow(list_prop[[2]])
-nrow_total <- nrow(list_prop[[3]])
 
 ###
 ###Flight Phase
 ###
-list_flight <- flight_func(data_A, data_C, data_Combined)
-
-##Jump Height from flight time ((ft/2)^2)*9.80665*0.5)
-jumpheight_df <-data_frame(jumpheight_meters=c(
-jumpheightFL_a <- (((max(list_flight[[1]][1])-min(list_flight[[1]][1]))/2)^2)*9.80665*0.5,
-jumpheightFL_c <- (((max(list_flight[[2]][1])-min(list_flight[[2]][1]))/2)^2)*9.80665*0.5,
-jumpheightFL_total <- (((max(list_flight[[3]][1])-min(list_flight[[3]][1]))/2)^2)*9.80665*0.5))
-
-##Jump height from takeoff vel TOVel^2/2*9.8066,
-jumpheightTOV_a <- ((list_prop[[1]][[c(7,nrow_a)]])^2)/(9.80665*2)
+list_flight <- flight_func(data_A, data_C)
 
 ###
 ###Landing Phase
 ###
-list_landing <- landing_func(data_A, data_C, data_Combined)
+list_landing <- landing_func(data_A, data_C)
 
+###Final Wrangling
 #######Seperate into lists of forces/Not phases
 list_A <- list(list_weighing[[1]], list_unweighting[[1]], list_brake[[1]], list_prop[[1]], list_flight[[1]],
                list_landing[[1]])
 list_C <- list(list_weighing[[2]], list_unweighting[[2]], list_brake[[2]], list_prop[[2]], list_flight[[2]],
                list_landing[[2]])
-list_total <- list(list_weighing[[3]], list_unweighting[[3]], list_brake[[3]], list_prop[[3]], list_flight[[3]],
-               list_landing[[3]])
 
 ###Separate df per force trace
 df_forceA <- finaldf_func(list_A)
 df_forceC <- finaldf_func(list_C)
-df_forceTotal <- finaldf_func(list_total)
+
+###Summary Metrics
+df_forceAfinal <- finalmetrics_func(df_forceA)
+df_forceCfinal <- finalmetrics_func(df_forceC)
+
+
+test <- bind_rows(df_forceAfinal, df_forceCfinal, .id="Sensor") %>%
+  mutate(Sensor = case_when(Sensor == '1' ~ "A",
+                            Sensor == '2' ~ 'C'))
 
 
 ###Plots
-ggplot(df_forceA, aes(x=Time, y=VerticalForceA))+
+ggplot(df_forceA, aes(x=Time, y=VerticalForce))+
   geom_line()+
   theme_bw()+
   facet_wrap(.~Jump_Phase, scales = "free_x")
 
-ggplot(df_forceC, aes(x=Time, y=VerticalForceC))+
+ggplot(df_forceC, aes(x=Time, y=VerticalForce))+
   geom_line()+
   theme_bw()+
   facet_wrap(.~Jump_Phase, scales = "free_x")
 
-ggplot(df_forceTotal, aes(x=Time, y=Combined))+
-  geom_line()+
-  theme_bw()+
   facet_wrap(.~Jump_Phase, scales = "free_x")
 
 
@@ -132,25 +130,7 @@ B <- df_forceC %>%
   stat_smooth_func(geom="text",method="lm",hjust=0, vjust=4,parse=TRUE) +
   stat_smooth(method = "lm", alpha=.2)
 
-C <- df_forceTotal %>%
-  filter(Jump_Phase == "braking") %>%
-  select(2,3) %>%
-  ggplot(aes(Time, Combined))+
-  geom_line() +
-  ylim(250,2500)+
-  theme_bw()+
-  stat_smooth_func(geom="text",method="lm",hjust=0, vjust=4,parse=TRUE) +
-  stat_smooth(method = "lm", alpha=.2)
-
-
-plot_grid(A, B, C, ncol = 3, labels = c("Left", "Right", "Combined"))
-
-data_A$force_diff <- c(0, diff(data_A$VerticalForceA))
-
-timefil <- data_A$Time[data_A$force_diff == max]
-
-max <- max(data_A$force_diff)
-
+plot_grid(A, B, ncol = 2, labels = c("Left", "Right"))
 
 f <- data_A %>%
   filter(Time < timefil-.02) %>%
@@ -164,6 +144,5 @@ f <- data_A %>%
   geom_vline(xintercept = 3.28)+
   geom_line(aes(x=Time, y=force_diff*50, colour='Force_diff'))+
   geom_line(aes(x=Time, y=Velocity_A*100, colour='Vel'))
-
 
 session_info()
