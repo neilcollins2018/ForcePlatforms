@@ -4,7 +4,7 @@ library(zoo)
 library(data.table)
 library(tidyr)
 
-source('Force Plate Func.R')
+devtools::source_gist('b966daa2539e10c53a3fc8688d66b819')
 
 ###File Read
 data <- PascoDual_read('./1khz/ExportData_3_Run02_CMJ.TXT')
