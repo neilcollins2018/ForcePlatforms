@@ -11,7 +11,7 @@ pacman::p_load("tidyverse","magrittr", 'zoo', 'data.table', 'tidyr', 'devtools',
 devtools::source_gist('b966daa2539e10c53a3fc8688d66b819',  quiet = T)
 
 ###File Read
-data <- PascoDual_read(file=file.choose())
+data <- Pasco_read(file=file.choose())
 
 ##Calculate sample rate
 sample_rate <- sample_rate(data)
