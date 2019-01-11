@@ -7,14 +7,6 @@ pacman::p_load("tidyverse","magrittr", 'zoo', 'data.table', 'tidyr', 'devtools',
                "openxlsx" )                                                       #
 ###########Above can be deleted following first error free analysis performed######
 
-####Package load
-library(tidyverse)
-library(magrittr)
-library(zoo)
-library(data.table)
-library(tidyr)
-library(openxlsx)
-
 ##Load functions 
 devtools::source_gist('b966daa2539e10c53a3fc8688d66b819',  quiet = T)
 
