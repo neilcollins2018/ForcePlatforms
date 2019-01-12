@@ -8,7 +8,7 @@ pacman::p_load("tidyverse","magrittr", 'zoo', 'data.table', 'tidyr', 'devtools',
 ###########Above can be deleted following first error free analysis performed######
 
 ##Load functions 
-devtools::source_gist('b966daa2539e10c53a3fc8688d66b819',  quiet = T)
+devtools::source_gist('b966daa2539e10c53a3fc8688d66b819', quiet = T)
 
 ###File Read
 data <- Pasco_read(file=file.choose())
@@ -40,30 +40,11 @@ list_weighing <- lapply(data_list, function(x){x %<>% filter(Time < 1.5 & Time >
 list_weights_masses <- weightmass_list(list_weighing)
 
 ###
-###Unweighting Phase
-list_unweighting <- unweighting_phase(data_list[[1]], data_list[[2]], data_list[[3]])
+###Unweighting/Braking/Propulsion/Flight/Landing Phase
+list_A <- phase_split(data_list[[1]])
+list_C <- phase_split(data_list[[2]])
+list_combined <- phase_split(data_list[[3]])
 
-###
-###Braking Phase
-list_brake <- braking_phase(data_list[[1]], data_list[[2]], data_list[[3]])
-
-###
-###Propulsion Phase
-list_prop <- prop_phase(data_list[[1]], data_list[[2]], data_list[[3]])
-
-###
-###Flight Phase
-list_flight <- flight_phase(data_list[[1]], data_list[[2]], data_list[[3]])
-
-###
-###Landing Phase
-list_landing <- landing_phase(data_list[[1]], data_list[[2]], data_list[[3]])
-
-###Final Wrangling
-#######Seperate into lists of forces/Not phases
-list_A <- listINDforces(1)
-list_C <- listINDforces(2)
-list_combined <- listINDforces(3)
 
 ###Combine Summary Metrics & raw data divided into phases
 finalmetric_df <- finalmetricsdf()
@@ -89,4 +70,4 @@ View(full_data)
 excel_create()
 
 ##Tidy Up 
-rm(list=ls(pattern = "list|weight"))
+rm(list=ls(pattern = "list|weight|i"))
