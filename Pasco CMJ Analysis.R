@@ -70,4 +70,5 @@ View(full_data)
 excel_create()
 
 ##Tidy Up 
-rm(list=ls(pattern = "list|weight|i"))
+rm(list=ls(pattern = "list|weight"))
+
