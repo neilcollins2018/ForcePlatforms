@@ -6,10 +6,7 @@ for (i in RequiredPackages) { #Installs packages if not yet installed           
 pacman::p_load("tidyverse","magrittr", 'zoo', 'data.table', 'tidyr', 'devtools',  # 
                "openxlsx" )                                                       #
 ###########Above can be deleted following first error free analysis performed######
-<<<<<<< HEAD
-=======
 
->>>>>>> 3d283a244eecdc2cc7693c949eb64ece992a025b
 ##Load functions 
 devtools::source_gist('b966daa2539e10c53a3fc8688d66b819', quiet = T)
 
