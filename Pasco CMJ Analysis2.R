@@ -36,22 +36,13 @@ data_list <- Initial_metric_ls(data_list)
 list_weighing <- lapply(data_list, function(x){x %<>% filter(Time < 1.5 & Time > 0.5);x})
 
 ####Weights(N)/Masses (Kg)
-<<<<<<< HEAD
 list_weights_masses <- wghtmass_lst(list_weighing)
 
-=======
-list_weights_masses <- weightmass_list(list_weighing)
-
 ###
->>>>>>> 3d283a244eecdc2cc7693c949eb64ece992a025b
 ###Unweighting/Braking/Propulsion/Flight/Landing Phase
 list_A <- phase_split(data_list[[1]])
 list_C <- phase_split(data_list[[2]])
 list_combined <- phase_split(data_list[[3]])
-<<<<<<< HEAD
-=======
-
->>>>>>> 3d283a244eecdc2cc7693c949eb64ece992a025b
 
 ###Combine Summary Metrics & raw data divided into phases
 finalmetric_df <- finalmetricsdf()
@@ -78,4 +69,3 @@ excel_create()
 
 ##Tidy Up 
 rm(list=ls(pattern = "list|weight"))
-
